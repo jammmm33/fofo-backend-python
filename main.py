@@ -24,17 +24,16 @@ class ChatRequest(BaseModel):
 app = FastAPI()
 
 # ✅ 1. CORS 설정을 환경 변수를 사용하도록 수정합니다.
-FRONTEND_URL = os.getenv("FRONTEND_URL")
-origins = []
-if FRONTEND_URL:
-    origins.append(FRONTEND_URL)
+origins = [
+    "https://staging.d1dbfs3o76ym6j.amplifyapp.com"
+]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"], # 모든 메소드 허용
+    allow_headers=["*"], # 모든 헤더 허용
 )
 
 app.include_router(chatbot_router)
