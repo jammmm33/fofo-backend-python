@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from utils import get_predefined_questions
 from fastapi.middleware.cors import CORSMiddleware
 from chatbot_manager import router as chatbot_router
+import tempfile
 import os
 
 # --- Pydantic 모델 정의 ---
@@ -45,22 +46,19 @@ async def read_root():
 
 @app.post("/upload")
 async def upload(file: UploadFile = File(...), user_id: str = Depends(get_current_user)):
-    # 'user_files' 폴더가 없으면 생성
-    os.makedirs('user_files', exist_ok=True)
+    # 안전하게 임시 파일을 생성합니다. suffix는 파일 확장자를 유지하는 데 도움이 됩니다.
+    with tempfile.NamedTemporaryFile(delete=False, suffix=file.filename) as tmp:
+        # 업로드된 파일의 내용을 임시 파일에 씁니다.
+        content = await file.read()
+        tmp.write(content)
+        temp_file_path = tmp.name
     
-    file_path = f"user_files/{user_id}_{file.filename}"
     try:
-        with open(file_path, "wb") as f:
-            f.write(await file.read())
-        
-        store_document_vectors(file_path, user_id)
-    
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"'{file.filename}' 처리 중 오류 발생: {str(e)}")
-    
+        # 임시 파일의 경로를 다음 함수로 전달합니다.
+        store_document_vectors(temp_file_path, user_id)
     finally:
-        if os.path.exists(file_path):
-            os.remove(file_path)
+        # 함수 실행이 성공하든 실패하든, 임시 파일은 항상 삭제합니다.
+        os.remove(temp_file_path)
 
     return {"message": "문서 업로드 및 벡터 저장 완료"}
 
