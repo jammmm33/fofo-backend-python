@@ -1,27 +1,5 @@
 import os
-from docx import Document
-from PyPDF2 import PdfReader
 
-def extract_text_from_file(file_path: str) -> str:
-    ext = os.path.splitext(file_path)[1].lower()
-    text = ""
-
-    if ext == ".pdf":
-        with open(file_path, "rb") as f:
-            reader = PdfReader(f)
-            for page in reader.pages:
-                text += page.extract_text() or ""
-    elif ext == ".docx":
-        doc = Document(file_path)
-        for para in doc.paragraphs:
-            text += para.text + "\n"
-    elif ext == ".txt":
-        with open(file_path, "r", encoding="utf-8") as f:
-            text = f.read()
-    else:
-        raise ValueError(f"지원하지 않는 파일 형식입니다: {ext}")
-
-    return text.strip()
 
 def get_predefined_questions() -> list:
     return [

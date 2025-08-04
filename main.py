@@ -1,17 +1,17 @@
-# main.py
+import shutil
+import os
+import tempfile
+from typing import Dict, Optional
 
-from fastapi import FastAPI, UploadFile, File, Depends, HTTPException
+from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, BackgroundTasks
 from user_answers import save_user_answers, get_user_answers
 from llm import store_document_vectors
 from rag_chatbot import get_chatbot_response
-from auth import get_current_user, get_current_user_optional # ✅ get_current_user_optional을 함께 import
-from typing import Dict, Optional
+from auth import get_current_user, get_current_user_optional
 from pydantic import BaseModel
 from utils import get_predefined_questions
 from fastapi.middleware.cors import CORSMiddleware
 from chatbot_manager import router as chatbot_router
-import tempfile
-import os
 
 # --- Pydantic 모델 정의 ---
 class AnswersRequest(BaseModel):
@@ -21,11 +21,9 @@ class ChatRequest(BaseModel):
     query: str
     userId: Optional[str] = None
 
-print("--- FastAPI 앱 초기화 시작 ---") # 이 줄 추가
 app = FastAPI()
-print("--- FastAPI 인스턴스 생성 완료 ---") # 이 줄 추가
 
-# ✅ 1. CORS 설정을 환경 변수를 사용하도록 수정합니다.
+# --- CORS 설정 ---
 origins = [
     "https://staging.d1dbfs3o76ym6j.amplifyapp.com",
     "https://distragng_dthfjhjfdhfjgsn_gadfljtyago.com"
@@ -35,55 +33,62 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"], # 모든 메소드 허용
-    allow_headers=["*"], # 모든 헤더 허용
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-print("--- CORS 미들웨어 추가 완료 ---") # 이 줄 추가
-
+# --- 라우터 포함 ---
 app.include_router(chatbot_router)
-print("--- 챗봇 라우터 포함 완료 ---") # 이 줄 추가
 
+# --- 백그라운드 작업을 위한 헬퍼 함수 ---
+def store_document_vectors_and_cleanup(file_path: str, user_id: str):
+    """
+    백그라운드에서 문서 벡터화 및 임시 파일 삭제를 수행하는 함수
+    """
+    try:
+        print(f"--- [백그라운드] store_document_vectors 호출 시작: {file_path} ---")
+        store_document_vectors(file_path, user_id)
+        print(f"--- [백그라운드] store_document_vectors 호출 완료 ---")
+    except Exception as e:
+        print(f"!!!!!!!! [백그라운드 ERROR] 처리 중 오류 발생: {e} !!!!!!!!!!")
+    finally:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            print(f"--- [백그라운드] 임시 파일 '{file_path}' 삭제 완료 ---")
+
+# --- 기존 API 엔드포인트들 (변경 없음) ---
 @app.get("/")
 async def read_root():
     return {"message": "안녕하세요! 챗봇 API 서버입니다."}
 
-
+# --- ✅ 수정된 /upload 엔드포인트 ---
 @app.post("/upload")
-async def upload(file: UploadFile = File(...), user_id: str = Depends(get_current_user)):
-    print(f"--- /upload 엔드포인트 호출됨, user_id: {user_id}, filename: {file.filename} ---")
-
-    # 파일 크기 로깅 (추가)
+async def upload(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...), 
+    user_id: str = Depends(get_current_user)
+):
+    temp_file_path = ""
     try:
-        # 파일 내용 읽기 (스트리밍 방식이므로 용량이 크면 지연될 수 있음)
-        content = await file.read() # 이 부분에서 문제가 발생할 가능성이 가장 높음
-        print(f"--- 파일 내용 읽기 완료. 크기: {len(content)} 바이트 ---")
-
-        # 임시 파일 생성 및 쓰기
-        with tempfile.NamedTemporaryFile(delete=False, suffix=file.filename) as tmp:
-            tmp.write(content)
+        # 1. 스트리밍으로 임시 파일에 바로 저장 (메모리 사용 최소화)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename)[1]) as tmp:
             temp_file_path = tmp.name
-        print(f"--- 파일 내용 임시 파일 '{temp_file_path}'에 쓰기 완료 ---")
-
-        # store_document_vectors 호출
-        print(f"--- store_document_vectors 호출 시작 ---")
-        store_document_vectors(temp_file_path, user_id)
-        print(f"--- store_document_vectors 호출 완료 ---")
+            shutil.copyfileobj(file.file, tmp)
+        
+        # 2. 시간이 오래 걸리는 작업을 백그라운드로 넘김
+        background_tasks.add_task(store_document_vectors_and_cleanup, temp_file_path, user_id)
 
     except Exception as e:
-        print(f"!!!!!!!! ERROR: /upload 처리 중 치명적인 오류 발생: {e} !!!!!!!!!!")
-        # 오류 발생 시 임시 파일이 남아있을 수 있으므로 cleanup 추가
-        if 'temp_file_path' in locals() and os.path.exists(temp_file_path):
+        # 파일 저장 단계에서 오류 발생 시 즉시 에러 응답
+        if temp_file_path and os.path.exists(temp_file_path):
             os.remove(temp_file_path)
-        raise HTTPException(status_code=500, detail=f"파일 업로드 처리 중 오류 발생: {e}")
+        raise HTTPException(status_code=500, detail=f"파일 저장 중 오류 발생: {e}")
     finally:
-        # 이 finally 블록은 tmp.name이 정의되지 않았을 때 오류를 일으킬 수 있으므로
-        # try-except-finally 구조를 더 명확히 합니다.
-        if 'temp_file_path' in locals() and os.path.exists(temp_file_path):
-            os.remove(temp_file_path)
-            print(f"--- 임시 파일 '{temp_file_path}' 삭제 완료 ---")
+        # 업로드된 파일의 스트림을 닫아줌
+        await file.close()
 
-    return {"message": "문서 업로드 및 벡터 저장 완료"}
+    # 3. 사용자에게는 즉시 응답
+    return {"message": "파일 업로드가 시작되었습니다. 처리가 완료되면 사용할 수 있습니다."}
 
 
 @app.post("/save-answers")
