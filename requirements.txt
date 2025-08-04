@@ -12,4 +12,5 @@ docx2txt
 pypdf
 pymongo
 python-dotenv
+python-multipart
 python-jose[cryptography]
