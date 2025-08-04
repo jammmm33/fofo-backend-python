@@ -51,34 +51,37 @@ async def read_root():
 
 @app.post("/upload")
 async def upload(file: UploadFile = File(...), user_id: str = Depends(get_current_user)):
-    print(f"--- /upload 엔드포인트 호출됨, user_id: {user_id}, filename: {file.filename} ---") # 추가
+    print(f"--- /upload 엔드포인트 호출됨, user_id: {user_id}, filename: {file.filename} ---")
 
-    # 안전하게 임시 파일을 생성합니다. suffix는 파일 확장자를 유지하는 데 도움이 됩니다.
-    with tempfile.NamedTemporaryFile(delete=False, suffix=file.filename) as tmp:
-        print(f"--- 임시 파일 생성됨: {tmp.name} ---") # 추가
-        # 업로드된 파일의 내용을 임시 파일에 씁니다.
-        try:
-            content = await file.read()
-            print(f"--- 파일 내용 읽기 완료. 크기: {len(content)} 바이트 ---") # 추가
+    # 파일 크기 로깅 (추가)
+    try:
+        # 파일 내용 읽기 (스트리밍 방식이므로 용량이 크면 지연될 수 있음)
+        content = await file.read() # 이 부분에서 문제가 발생할 가능성이 가장 높음
+        print(f"--- 파일 내용 읽기 완료. 크기: {len(content)} 바이트 ---")
+
+        # 임시 파일 생성 및 쓰기
+        with tempfile.NamedTemporaryFile(delete=False, suffix=file.filename) as tmp:
             tmp.write(content)
             temp_file_path = tmp.name
-            print(f"--- 파일 내용 임시 파일에 쓰기 완료 ---") # 추가
-        except Exception as e:
-            print(f"!!!!!!!! ERROR: 파일 읽기/쓰기 중 오류 발생: {e} !!!!!!!!!!") # 추가
-            raise HTTPException(status_code=500, detail=f"파일 처리 중 오류 발생: {e}")
+        print(f"--- 파일 내용 임시 파일 '{temp_file_path}'에 쓰기 완료 ---")
 
-    try:
-        # 임시 파일의 경로를 다음 함수로 전달합니다.
-        print(f"--- store_document_vectors 호출 시작 ---") # 추가
+        # store_document_vectors 호출
+        print(f"--- store_document_vectors 호출 시작 ---")
         store_document_vectors(temp_file_path, user_id)
-        print(f"--- store_document_vectors 호출 완료 ---") # 추가
+        print(f"--- store_document_vectors 호출 완료 ---")
+
     except Exception as e:
-        print(f"!!!!!!!! ERROR: store_document_vectors 함수 호출 중 오류 발생: {e} !!!!!!!!!!") # 추가
-        raise HTTPException(status_code=500, detail=f"문서 벡터 저장 중 오류 발생: {e}")
+        print(f"!!!!!!!! ERROR: /upload 처리 중 치명적인 오류 발생: {e} !!!!!!!!!!")
+        # 오류 발생 시 임시 파일이 남아있을 수 있으므로 cleanup 추가
+        if 'temp_file_path' in locals() and os.path.exists(temp_file_path):
+            os.remove(temp_file_path)
+        raise HTTPException(status_code=500, detail=f"파일 업로드 처리 중 오류 발생: {e}")
     finally:
-        # 함수 실행이 성공하든 실패하든, 임시 파일은 항상 삭제합니다.
-        os.remove(temp_file_path)
-        print(f"--- 임시 파일 삭제 완료 ---") # 추가
+        # 이 finally 블록은 tmp.name이 정의되지 않았을 때 오류를 일으킬 수 있으므로
+        # try-except-finally 구조를 더 명확히 합니다.
+        if 'temp_file_path' in locals() and os.path.exists(temp_file_path):
+            os.remove(temp_file_path)
+            print(f"--- 임시 파일 '{temp_file_path}' 삭제 완료 ---")
 
     return {"message": "문서 업로드 및 벡터 저장 완료"}
 
