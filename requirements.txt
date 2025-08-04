@@ -14,3 +14,4 @@ pymongo
 python-dotenv
 python-multipart
 python-jose[cryptography]
+numpy==1.26.4
