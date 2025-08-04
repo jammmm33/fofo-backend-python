@@ -41,16 +41,14 @@ app.add_middleware(
 app.include_router(chatbot_router)
 
 # --- 백그라운드 작업을 위한 헬퍼 함수 ---
-def store_document_vectors_and_cleanup(file_path: str, user_id: str):
+def store_and_cleanup_task(file_path: str, user_id: str):
     """
-    백그라운드에서 문서 벡터화 및 임시 파일 삭제를 수행하는 함수
+    백그라운드에서 문서 벡터화 및 임시 파일 삭제를 수행
     """
     try:
-        print(f"--- [백그라운드] store_document_vectors 호출 시작: {file_path} ---")
         store_document_vectors(file_path, user_id)
-        print(f"--- [백그라운드] store_document_vectors 호출 완료 ---")
     except Exception as e:
-        print(f"!!!!!!!! [백그라운드 ERROR] 처리 중 오류 발생: {e} !!!!!!!!!!")
+        print(f"!!!!!!!! [BACKGROUND ERROR] 파일 처리 중 오류 발생: {e} !!!!!!!!!!")
     finally:
         if os.path.exists(file_path):
             os.remove(file_path)
@@ -65,29 +63,22 @@ async def read_root():
 @app.post("/upload")
 async def upload(
     background_tasks: BackgroundTasks,
-    file: UploadFile = File(...), 
+    file: UploadFile = File(...),
     user_id: str = Depends(get_current_user)
 ):
     temp_file_path = ""
     try:
-        # 1. 스트리밍으로 임시 파일에 바로 저장 (메모리 사용 최소화)
         with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename)[1]) as tmp:
             temp_file_path = tmp.name
             shutil.copyfileobj(file.file, tmp)
-        
-        # 2. 시간이 오래 걸리는 작업을 백그라운드로 넘김
-        background_tasks.add_task(store_document_vectors_and_cleanup, temp_file_path, user_id)
-
     except Exception as e:
-        # 파일 저장 단계에서 오류 발생 시 즉시 에러 응답
-        if temp_file_path and os.path.exists(temp_file_path):
-            os.remove(temp_file_path)
-        raise HTTPException(status_code=500, detail=f"파일 저장 중 오류 발생: {e}")
+        raise HTTPException(status_code=500, detail=f"임시 파일 생성 중 오류 발생: {e}")
     finally:
-        # 업로드된 파일의 스트림을 닫아줌
         await file.close()
 
-    # 3. 사용자에게는 즉시 응답
+    # 시간이 오래 걸리는 작업을 백그라운드로 넘기고 즉시 응답
+    background_tasks.add_task(store_and_cleanup_task, temp_file_path, user_id)
+
     return {"message": "파일 업로드가 시작되었습니다. 처리가 완료되면 사용할 수 있습니다."}
 
 
