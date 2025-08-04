@@ -17,16 +17,26 @@ from user_answers import delete_user_answers
 # --- .env 파일 로드 ---
 load_dotenv()
 
+print("--- 환경 변수 로드 완료 ---")
+
 # --- MongoDB 클라이언트 설정 ---
+print("--- MongoDB 클라이언트 연결 시도 ---")
+
 client = MongoClient(os.getenv("MONGO_URI"))
 db = client["chatbot_db"]
 chatbots_collection = db["chatbot_metadata"]
 
+print("--- MongoDB 연결 및 컬렉션 설정 완료 ---")
 
 # --- Pinecone 클라이언트 설정 ---
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 INDEX_NAME = os.getenv("PINECONE_INDEX", "chatbot-index")
+
+print("--- Pinecone 클라이언트 연결 시도 ---") # 이 줄 추가
+
 pc = Pinecone(api_key=PINECONE_API_KEY)
+
+print("--- Pinecone 클라이언트 설정 완료 ---")
 
 
 # --- FastAPI 라우터 설정 ---

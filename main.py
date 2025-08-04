@@ -21,7 +21,9 @@ class ChatRequest(BaseModel):
     query: str
     userId: Optional[str] = None
 
+print("--- FastAPI 앱 초기화 시작 ---") # 이 줄 추가
 app = FastAPI()
+print("--- FastAPI 인스턴스 생성 완료 ---") # 이 줄 추가
 
 # ✅ 1. CORS 설정을 환경 변수를 사용하도록 수정합니다.
 origins = [
@@ -37,7 +39,10 @@ app.add_middleware(
     allow_headers=["*"], # 모든 헤더 허용
 )
 
+print("--- CORS 미들웨어 추가 완료 ---") # 이 줄 추가
+
 app.include_router(chatbot_router)
+print("--- 챗봇 라우터 포함 완료 ---") # 이 줄 추가
 
 @app.get("/")
 async def read_root():
