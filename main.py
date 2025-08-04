@@ -25,7 +25,8 @@ app = FastAPI()
 
 # ✅ 1. CORS 설정을 환경 변수를 사용하도록 수정합니다.
 origins = [
-    "https://staging.d1dbfs3o76ym6j.amplifyapp.com"
+    "https://staging.d1dbfs3o76ym6j.amplifyapp.com",
+    "https://distragng_dthfjhjfdhfjgsn_gadfljtyago.com"
 ]
 
 app.add_middleware(
