@@ -51,19 +51,34 @@ async def read_root():
 
 @app.post("/upload")
 async def upload(file: UploadFile = File(...), user_id: str = Depends(get_current_user)):
+    print(f"--- /upload 엔드포인트 호출됨, user_id: {user_id}, filename: {file.filename} ---") # 추가
+
     # 안전하게 임시 파일을 생성합니다. suffix는 파일 확장자를 유지하는 데 도움이 됩니다.
     with tempfile.NamedTemporaryFile(delete=False, suffix=file.filename) as tmp:
+        print(f"--- 임시 파일 생성됨: {tmp.name} ---") # 추가
         # 업로드된 파일의 내용을 임시 파일에 씁니다.
-        content = await file.read()
-        tmp.write(content)
-        temp_file_path = tmp.name
-    
+        try:
+            content = await file.read()
+            print(f"--- 파일 내용 읽기 완료. 크기: {len(content)} 바이트 ---") # 추가
+            tmp.write(content)
+            temp_file_path = tmp.name
+            print(f"--- 파일 내용 임시 파일에 쓰기 완료 ---") # 추가
+        except Exception as e:
+            print(f"!!!!!!!! ERROR: 파일 읽기/쓰기 중 오류 발생: {e} !!!!!!!!!!") # 추가
+            raise HTTPException(status_code=500, detail=f"파일 처리 중 오류 발생: {e}")
+
     try:
         # 임시 파일의 경로를 다음 함수로 전달합니다.
+        print(f"--- store_document_vectors 호출 시작 ---") # 추가
         store_document_vectors(temp_file_path, user_id)
+        print(f"--- store_document_vectors 호출 완료 ---") # 추가
+    except Exception as e:
+        print(f"!!!!!!!! ERROR: store_document_vectors 함수 호출 중 오류 발생: {e} !!!!!!!!!!") # 추가
+        raise HTTPException(status_code=500, detail=f"문서 벡터 저장 중 오류 발생: {e}")
     finally:
         # 함수 실행이 성공하든 실패하든, 임시 파일은 항상 삭제합니다.
         os.remove(temp_file_path)
+        print(f"--- 임시 파일 삭제 완료 ---") # 추가
 
     return {"message": "문서 업로드 및 벡터 저장 완료"}
 
