@@ -1,18 +1,22 @@
-fastapi
-uvicorn
-gunicorn
-langchain
-langchain-openai
-langchain-community
-langchain-pinecone
-pinecone-client
-openai
-tiktoken
+fastapi==0.111.0
+uvicorn==0.29.0
+gunicorn==22.0.0
+python-dotenv==1.0.1
+
+# LangChain 및 관련 AI 라이브러리 (안정 버전으로 고정)
+langchain==0.1.20
+langchain-community==0.0.38
+langchain-openai==0.1.6
+langchain-pinecone==0.1.1
+openai==1.16.2
+pinecone-client==3.2.2
+tiktoken==0.6.0
+
+# 파일 처리 및 기타
 python-docx
 docx2txt
 pypdf
 pymongo
-python-dotenv
 python-multipart
 python-jose[cryptography]
 numpy==1.26.4
