@@ -26,7 +26,7 @@ app = FastAPI()
 # --- CORS 설정 ---
 origins = [
     "https://staging.d1dbfs3o76ym6j.amplifyapp.com",
-    "https://distragng_dthfjhjfdhfjgsn_gadfljtyago.com",
+    "https://staging.d1dbbls3b75wb6.amplifyapp.com",
     "https://www.my-fortpoilo-fopofo.com"
 ]
 
