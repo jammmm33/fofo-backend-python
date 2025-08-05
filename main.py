@@ -1,7 +1,10 @@
+# main.py (수정된 전체 코드)
+
 import shutil
 import os
 import tempfile
 from typing import Dict, Optional
+from contextlib import asynccontextmanager # ✅ lifespan을 위해 import 추가
 
 from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, BackgroundTasks
 from user_answers import save_user_answers, get_user_answers
@@ -11,9 +14,10 @@ from auth import get_current_user, get_current_user_optional
 from pydantic import BaseModel
 from utils import get_predefined_questions
 from fastapi.middleware.cors import CORSMiddleware
-from chatbot_manager import router as chatbot_router
+# ✅ chatbot_manager에서 초기화 함수를 추가로 import 합니다.
+from chatbot_manager import router as chatbot_router, init_pinecone_client
 
-# --- Pydantic 모델 정의 ---
+# --- Pydantic 모델 정의 (기존과 동일) ---
 class AnswersRequest(BaseModel):
     answers: Dict[str, str]
 
@@ -21,15 +25,25 @@ class ChatRequest(BaseModel):
     query: str
     userId: Optional[str] = None
 
-app = FastAPI()
+# --- Lifespan 이벤트 핸들러 추가 ---
+@asynccontextmanager # ✅ FastAPI의 lifespan 이벤트 핸들러 데코레이터
+async def lifespan(app: FastAPI): # ✅ 애플리케이션의 시작과 종료 시점을 관리하는 함수 추가
+    # 애플리케이션 시작 시 실행될 코드
+    print("### 애플리케이션 시작 ###")
+    init_pinecone_client() # ✅ 여기서 Pinecone 클라이언트를 초기화합니다.
+    yield
+    # 애플리케이션 종료 시 실행될 코드
+    print("### 애플리케이션 종료 ###")
 
-# --- CORS 설정 ---
+# --- FastAPI 앱 생성 시 lifespan 연결 ---
+app = FastAPI(lifespan=lifespan) # ✅ FastAPI 앱에 lifespan 핸들러를 연결합니다.
+
+# --- CORS 설정 (기존과 동일) ---
 origins = [
     "https://staging.d1dbfs3o76ym6j.amplifyapp.com",
     "https://staging.d1dbbls3b75wb6.amplifyapp.com",
     "https://www.my-fortpoilo-fopofo.com"
 ]
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -38,14 +52,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- 라우터 포함 ---
+# --- 라우터 포함 (기존과 동일) ---
 app.include_router(chatbot_router)
 
-# --- 백그라운드 작업을 위한 헬퍼 함수 ---
+# --- 백그라운드 작업 및 API 엔드포인트들 (이하 변경 없음) ---
 def store_and_cleanup_task(file_path: str, user_id: str):
-    """
-    백그라운드에서 문서 벡터화 및 임시 파일 삭제를 수행
-    """
     try:
         store_document_vectors(file_path, user_id)
     except Exception as e:
@@ -55,12 +66,10 @@ def store_and_cleanup_task(file_path: str, user_id: str):
             os.remove(file_path)
             print(f"--- [백그라운드] 임시 파일 '{file_path}' 삭제 완료 ---")
 
-# --- 기존 API 엔드포인트들 (변경 없음) ---
 @app.get("/")
 async def read_root():
     return {"message": "안녕하세요! 챗봇 API 서버입니다."}
 
-# --- ✅ 수정된 /upload 엔드포인트 ---
 @app.post("/upload")
 async def upload(
     background_tasks: BackgroundTasks,
@@ -77,15 +86,11 @@ async def upload(
     finally:
         await file.close()
 
-    # 시간이 오래 걸리는 작업을 백그라운드로 넘기고 즉시 응답
     background_tasks.add_task(store_and_cleanup_task, temp_file_path, user_id)
-
     return {"message": "파일 업로드가 시작되었습니다. 처리가 완료되면 사용할 수 있습니다."}
-
 
 @app.post("/save-answers")
 async def save_answers_api(request: AnswersRequest, user_id: str = Depends(get_current_user)):
-    # ... (이 함수는 기존 코드와 동일)
     received_data = request.answers
     predefined_questions = get_predefined_questions()
     answers_list_to_save = []
@@ -100,17 +105,13 @@ async def save_answers_api(request: AnswersRequest, user_id: str = Depends(get_c
     save_user_answers(user_id, answers_list_to_save)
     return {"message": "질문 답변 저장 완료"}
 
-
 @app.get("/get-answers/{user_id}")
 async def get_answers_api(user_id: str):
     answers = get_user_answers(user_id)
     return {"user_id": user_id, "answers": answers}
 
-
-# ✅ --- '/chat' API를 이 올바른 버전 하나로 교체합니다 --- ✅
 @app.post("/chat")
 async def chat(request: ChatRequest, logged_in_user_id: Optional[str] = Depends(get_current_user_optional)):
-    
     target_user_id = None
     if request.userId:
         target_user_id = request.userId
