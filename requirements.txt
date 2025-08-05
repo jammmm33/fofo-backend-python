@@ -3,12 +3,12 @@ uvicorn==0.29.0
 gunicorn==22.0.0
 python-dotenv==1.0.1
 
-# LangChain 및 관련 AI 라이브러리 (안정 버전으로 고정)
+# LangChain 및 관련 라이브러리 (안정 버전으로 고정)
 langchain==0.1.20
 langchain-community==0.0.38
 langchain-openai==0.1.6
 langchain-pinecone==0.1.1
-openai==1.16.2
+openai==1.30.1  
 pinecone-client==3.2.2
 tiktoken==0.6.0
 
