@@ -8,7 +8,6 @@ from utils import get_predefined_questions
 from langchain_pinecone import PineconeVectorStore
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from pinecone import Pinecone
-# ✅ RetrievalQA 대신 LLMChain을 직접 사용하기 위해 추가합니다.
 from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
 from user_answers import get_user_qa_pairs
@@ -55,22 +54,29 @@ def get_chatbot_response(query: str, user_id: str) -> str:
         namespace=user_id
     )
     
-    # ✅ --- 핵심 수정: 검색과 답변 생성 로직 분리 ---
+    # ✅ --- 핵심 수정: 검색 방식을 MMR로 변경하여 안정성 강화 ---
 
-    # 2-1. 먼저 Pinecone에서 명시적으로 문서를 검색합니다.
-    print(f"--- Pinecone 유사도 검색 시작 (질문: '{query}') ---")
-    retrieved_docs = vectorstore.similarity_search(query, k=3) # 상위 3개 문서를 가져옵니다.
+    # 2-1. MMR(Maximal Marginal Relevance) 검색을 사용하도록 retriever를 설정합니다.
+    # 이 방식은 결과의 다양성을 높여, 관련 문서를 더 잘 찾아낼 수 있도록 도와줍니다.
+    retriever = vectorstore.as_retriever(
+        search_type="mmr",
+        search_kwargs={'k': 5, 'fetch_k': 10} # 후보 10개를 가져와서, 그 중 가장 관련성 높고 다양한 5개를 선택
+    )
 
-    # 2-2. 검색된 문서가 있는지 확인합니다.
+    # 2-2. retriever를 사용하여 명시적으로 문서를 검색합니다.
+    print(f"--- Pinecone MMR 검색 시작 (질문: '{query}') ---")
+    retrieved_docs = retriever.get_relevant_documents(query)
+
+    # 2-3. 검색된 문서가 있는지 확인합니다.
     if not retrieved_docs:
         print("--- Pinecone에서 관련 문서를 찾지 못했습니다. ---")
         return "제출된 자료를 통해서는 해당 질문에 충분히 답변드리기 어렵습니다."
 
-    # 2-3. 검색된 문서 내용을 하나의 '컨텍스트' 문자열로 합칩니다.
+    # 2-4. 검색된 문서 내용을 하나의 '컨텍스트' 문자열로 합칩니다.
     context_text = "\n\n---\n\n".join([doc.page_content for doc in retrieved_docs])
     print(f"--- 검색된 컨텍스트: {context_text[:300]}... ---")
 
-    # 2-4. 프롬프트 템플릿은 이전과 동일하게 강력한 규칙을 유지합니다.
+    # 2-5. 프롬프트 템플릿은 이전과 동일하게 강력한 규칙을 유지합니다.
     prompt_template = """
     당신은 '컨텍스트'로 주어진 문서 내용만을 기반으로 답변해야 하는 AI 챗봇입니다.
     당신의 역할은 사용자가 업로드한 이력서, 자기소개서 등의 내용을 바탕으로 면접관의 질문에 답변하는 것입니다.
@@ -93,10 +99,10 @@ def get_chatbot_response(query: str, user_id: str) -> str:
         template=prompt_template, input_variables=["context", "question"]
     )
     
-    # 2-5. RetrievalQA 대신, 더 직접적인 LLMChain을 사용합니다.
+    # 2-6. RetrievalQA 대신, 더 직접적인 LLMChain을 사용합니다.
     chain = LLMChain(llm=llm, prompt=PROMPT)
     
-    # 2-6. 검색된 컨텍스트와 원래 질문을 넣어 답변을 생성합니다.
+    # 2-7. 검색된 컨텍스트와 원래 질문을 넣어 답변을 생성합니다.
     result = chain.invoke({"context": context_text, "question": query})
     
     return result.get("text", "답변을 생성하지 못했습니다.")
