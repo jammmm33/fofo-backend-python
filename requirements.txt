@@ -11,7 +11,7 @@ langchain-openai==0.1.8
 langchain-pinecone==0.1.1
 openai>=1.23.6,<2.0.0  # openai 버전을 langchain-openai 최신 버전과 호환되도록 범위 설정
 pinecone-client==3.2.2 # pinecone-client는 최신 버전 유지
-tiktoken==0.6.0
+tiktoken==0.7.0
 
 # 파일 처리 및 기타
 python-docx
