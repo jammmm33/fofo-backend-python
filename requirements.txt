@@ -1,17 +1,16 @@
 # requirements.txt (최종 수정본)
-
 fastapi==0.111.0
 uvicorn==0.29.0
 gunicorn==22.0.0
 python-dotenv==1.0.1
 
-# LangChain 및 관련 AI 라이브러리 (안정 버전으로 고정)
-langchain==0.1.20
-langchain-community==0.0.38
-langchain-openai==0.1.6
+# LangChain 및 관련 AI 라이브러리 (상호 호환되는 최신 안정 버전으로 업데이트)
+langchain==0.2.5
+langchain-community==0.2.5
+langchain-openai==0.1.8
 langchain-pinecone==0.1.1
-openai==1.25.1  # ✅ langchain-openai==0.1.6과의 안정적인 호환성을 위해 버전 조정
-pinecone-client==3.2.2
+openai>=1.23.6,<2.0.0  # openai 버전을 langchain-openai 최신 버전과 호환되도록 범위 설정
+pinecone-client==3.2.2 # pinecone-client는 최신 버전 유지
 tiktoken==0.6.0
 
 # 파일 처리 및 기타
