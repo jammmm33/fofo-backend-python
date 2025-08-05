@@ -1,10 +1,11 @@
 fastapi
 uvicorn
 gunicorn
-langchain
-langchain-openai
-langchain-community
-langchain-pinecone
+langchain==0.2.6
+langchain-openai==0.1.14
+langchain-community==0.2.6
+langchain-pinecone==0.1.1
+pinecone-client==4.1.1
 openai
 tiktoken
 python-docx
@@ -15,4 +16,3 @@ python-dotenv
 python-multipart
 python-jose[cryptography]
 numpy==1.26.4
-pinecone-client==5.0.1
