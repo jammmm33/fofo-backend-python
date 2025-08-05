@@ -1,26 +1,19 @@
-# 주요 프레임워크 및 유틸리티
-fastapi==0.111.0
-uvicorn==0.29.0
-gunicorn==22.0.0
-python-dotenv==1.0.1
-python-multipart
-python-jose[cryptography]
-
-# LangChain 및 관련 AI 라이브러리 (안정적인 조합으로 명시)
-langchain==0.2.5
-langchain-community==0.2.5
-langchain-openai==0.1.8
-langchain-pinecone==0.1.1
-openai==1.23.6 # 버전 범위를 1.23.6으로 고정
-pinecone-client==3.2.2
-tiktoken==0.7.0
-
-# 데이터 처리 및 파일 처리 라이브러리 (메모리 문제 해결을 위한 안정 버전)
-numpy==1.24.4 # numpy 버전을 1.24.4로 다운그레이드
-pandas==2.0.3 # pandas를 명시적으로 추가하고 2.0.3으로 다운그레이드
-
-# 기타 파일 처리 라이브러리
+fastapi
+uvicorn
+gunicorn
+langchain
+langchain-community
+langchain-openai
+langchain-pinecone
+openai
+tiktoken
 python-docx
 docx2txt
 pypdf
 pymongo
+python-dotenv
+python-jose[cryptography]
+aiofiles
+python-multipart
+numpy==1.26.4
+pinecone-client==5.0.1
