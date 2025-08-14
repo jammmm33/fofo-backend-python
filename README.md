@@ -4,6 +4,8 @@
 
 > FOPOFO 프로젝트의 AI 기능을 전담하는 Python 백엔드 서버입니다. LangChain과 RAG(검색 증강 생성) 기술을 사용하여, 사용자가 업로드한 문서를 기반으로 답변하는 AI 챗봇 API를 제공합니다.
 
+-  **🔗 웹 배포 링크:** https://staging.d1dbfs3o76ym6j.amplifyapp.com/
+
 <br>
 
 ## **📜 주요 역할**
