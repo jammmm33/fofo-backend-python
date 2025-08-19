@@ -24,7 +24,7 @@
 -   **`Pinecone`**: 벡터 검색을 위한 데이터베이스
 -   **`OpenAI`**: 임베딩 및 LLM 모델 API
 -   **`Gunicorn` / `Uvicorn`**: 비동기 웹 서버 게이트웨이 인터페이스(ASGI) 서버
--   **배포:** `Render`
+-   **배포:** `AWS Elastic Beanstalk`
 
 ## **⚙️ 주요 API 엔드포인트**
 
